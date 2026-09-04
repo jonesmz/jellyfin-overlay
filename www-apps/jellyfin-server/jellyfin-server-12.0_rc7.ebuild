@@ -227,6 +227,8 @@ DEPEND="
 	acct-group/jellyfin
 	acct-user/jellyfin
 "
+# tmpfiles_process runs systemd-tmpfiles in pkg_postinst.
+IDEPEND="virtual/tmpfiles"
 
 DOTNET_PKG_PROJECTS=( "${S}/Jellyfin.Server/Jellyfin.Server.csproj" )
 
