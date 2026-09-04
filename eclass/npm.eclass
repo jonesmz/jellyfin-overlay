@@ -71,13 +71,22 @@ BDEPEND=">=net-libs/nodejs-20[npm]"
 : "${NPM_OFFLINE_CACHE:=${WORKDIR}/.npm-cache}"
 
 # Build NPM_SRC_URI from NPM_DEPS: "url -> name" per Portage rename syntax.
+# Runs at eclass source time (depend phase), so it must not use here-strings
+# or here-documents: bash materializes those into a temp file in CWD, which is
+# a read-only sandboxed directory during depend -> mkstemp denied. Split the
+# NPM_DEPS string on whitespace with word-splitting instead.
 _npm_set_src_uri() {
-	local url name
+	local -a fields
+	local i url name
 	NPM_SRC_URI=""
-	while read -r url name ; do
-		[[ -z ${url} ]] && continue
+	# Word-split NPM_DEPS into a flat array of alternating url/name tokens
+	# (intentionally unquoted for word splitting).
+	fields=( ${NPM_DEPS} )
+	for (( i = 0; i + 1 < ${#fields[@]}; i += 2 )) ; do
+		url="${fields[i]}"
+		name="${fields[i+1]}"
 		NPM_SRC_URI+=" ${url} -> ${name}"
-	done <<< "${NPM_DEPS}"
+	done
 }
 _npm_set_src_uri
 
