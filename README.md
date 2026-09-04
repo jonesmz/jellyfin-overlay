@@ -38,12 +38,11 @@ emaint sync -r jellyfin-overlay
 
 ## Installing
 
-The 12.0 releases are currently release candidates and are masked. To
-install one, accept the keyword and unmask:
+The 12.0 releases are currently release candidates, keyworded `~amd64`.
+To install one, accept the keyword:
 
 ```sh
 echo '=media-tv/jellyfin-12.0_rc7 ~amd64' >> /etc/portage/package.accept_keywords
-echo '=media-tv/jellyfin-12.0_rc7' >> /etc/portage/package.unmask
 emerge -av media-tv/jellyfin
 ```
 

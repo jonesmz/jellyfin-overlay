@@ -1,3 +1,0 @@
-# Jellyfin 12.0 is in release-candidate phase. Mask the RC versions so they
-# are not pulled in by accident; unmask explicitly to test them.
-=media-tv/jellyfin-12.0_rc7
