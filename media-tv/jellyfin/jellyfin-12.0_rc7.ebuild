@@ -3,28 +3,15 @@
 
 EAPI=8
 
-# Jellyfin server is a .NET application built from source with the .NET SDK.
-# The web client (jellyfin-web) is a separate npm/webpack project; upstream
-# does not publish it as a standalone artifact, so we lift the prebuilt web
-# bundle out of the official server release tarball and install it as-is.
+# Server is built from source; the web client is not published standalone, so
+# the prebuilt jellyfin-web bundle is taken from the -bin release tarball.
 DOTNET_PKG_COMPAT="10.0"
 
-# Full NuGet closure needed to restore the server project (Jellyfin.Server),
-# which transitively covers the whole non-test project graph. Regenerate on
-# every version bump with the official gdmt tool from
-# dev-dotnet/gentoo-dotnet-maintainer-tools, run in a clean tagged checkout:
-#   gdmt restore --sdk-ver 10.0 --cache "$(pwd)/.cache" \
-#       --project Jellyfin.Server/Jellyfin.Server.csproj
-#
-# IMPORTANT: gdmt's default output is INCOMPLETE for this package. It filters
-# out the .NET runtime packs on the assumption they are SDK-provided, but the
-# eclass restores with --runtime linux-x64 (RID-specific), which genuinely
-# needs them as packages. So after running gdmt, add the two linux-x64 runtime
-# packs by hand (verified missing otherwise -> NU1101 at restore):
-#   microsoft.aspnetcore.app.runtime.linux-x64@<ver>
-#   microsoft.netcore.app.runtime.linux-x64@<ver>
-# (gdmt --no-filter includes them, but also adds runtime packs for every other
-# Linux RID (arm/arm64/musl), which we do not want.)
+# Regenerate with: gdmt restore --sdk-ver 10.0 --cache "$(pwd)/.cache"
+#   --project Jellyfin.Server/Jellyfin.Server.csproj
+# gdmt filters out the .NET runtime packs (assumes SDK-provided), but the
+# --runtime linux-x64 restore needs them, so the two *.app.runtime.linux-x64
+# packs below are added by hand.
 NUGETS="
 	asynckeyedlock@8.0.2
 	bblanchon.pdfium.linux@147.0.7690
@@ -208,7 +195,6 @@ NUGETS="
 
 inherit dotnet-pkg systemd tmpfiles
 
-# Upstream tags releases like "v12.0-rc7"; Portage version is "12.0_rc7".
 MY_PV="${PV/_rc/-rc}"
 
 DESCRIPTION="Free Software Media System (server built from source)"
@@ -228,9 +214,6 @@ LICENSE="GPL-2"
 SLOT="0"
 KEYWORDS="~amd64"
 
-# Runtime libraries the server links/execs at runtime. The .NET build is
-# framework-dependent and pulls its managed deps from the vendored nugets, so
-# none of these are needed at compile time (no DEPEND entry for them).
 RDEPEND="
 	acct-group/jellyfin
 	acct-user/jellyfin
@@ -239,41 +222,25 @@ RDEPEND="
 	media-video/ffmpeg[vpx,x264]
 	virtual/zlib:=
 "
-# The .NET SDK build dependency (virtual/dotnet-sdk:${DOTNET_PKG_COMPAT}) is
-# added to BDEPEND automatically by dotnet-pkg.eclass. We only need the
-# jellyfin user/group at install time for the fowners calls in src_install.
+# acct-* needed at install time for fowners; virtual/dotnet-sdk comes from the
+# eclass.
 BDEPEND="
 	acct-group/jellyfin
 	acct-user/jellyfin
 "
 
-# Explicit allowlist of what we build: just the server entry point. Its
-# transitive project references cover the entire non-test project graph, so
-# restoring/building this one project pulls exactly the server NuGet closure
-# (verified: a project-only restore yields the same 178 packages as a
-# test-stripped full-solution restore).
-#
-# NOTE: we intentionally do NOT let the eclass restore the whole Jellyfin.sln.
-# The default dotnet-pkg_src_configure also runs a solution-wide restore, which
-# would drag in the tests/ projects and their test-only NuGets (xunit, Moq,
-# AutoFixture, ...). Our src_configure override below restores only the
-# projects listed here, so new test projects added upstream can never sneak
-# back into our dependency set.
 DOTNET_PKG_PROJECTS=( "${S}/Jellyfin.Server/Jellyfin.Server.csproj" )
 
 INST_DIR="/usr/share/${PN}"
 
 src_unpack() {
-	# The default dotnet-pkg_src_unpack would "unpack" every non-nupkg archive
-	# in ${A}, including the whole upstream server -bin tarball. We only want
-	# its jellyfin-web/ subtree, so compose the unpack manually: link the
-	# nugets into NUGET_PACKAGES and unpack just the source tarball.
+	# Only the source tarball is unpacked here; the web client is pulled out of
+	# the -bin tarball in src_prepare, not unpacked wholesale.
 	nuget_link-system-nugets
 	nuget_link-nuget-archives
 	unpack "${P}.gh.tar.gz"
 
-	# Extract only the prebuilt web client from the upstream release tarball.
-	# It lives at jellyfin/jellyfin-web/ inside the archive.
+	# Prebuilt web client, from jellyfin/jellyfin-web/ inside the -bin tarball.
 	mkdir -p "${WORKDIR}/jellyfin-web-bundle" || die
 	tar -xJf "${DISTDIR}/jellyfin-web-${PV}.tar.xz" \
 		-C "${WORKDIR}/jellyfin-web-bundle" \
@@ -283,34 +250,26 @@ src_unpack() {
 src_configure() {
 	dotnet-pkg-base_info
 
-	# Restore only the projects in DOTNET_PKG_PROJECTS. Deliberately skip the
-	# eclass default's solution-wide restore (dotnet-pkg-base_foreach-solution)
-	# so the tests/ projects are never restored. See DOTNET_PKG_PROJECTS above.
+	# Restore only DOTNET_PKG_PROJECTS, skipping the eclass's solution-wide
+	# restore, which would pull the tests/ projects' test-only nugets.
 	dotnet-pkg_foreach-project \
 		dotnet-pkg-base_restore "${DOTNET_PKG_RESTORE_EXTRA_ARGS[@]}"
 }
 
 src_install() {
-	# Install the compiled server output into ${INST_DIR}.
 	dotnet-pkg-base_install "${INST_DIR}"
 
-	# Install the prebuilt web client alongside the server output so the
-	# default web path (<basedir>/jellyfin-web) resolves; the service files
-	# also pass --webdir explicitly.
 	insinto "${INST_DIR}/jellyfin-web"
 	doins -r "${WORKDIR}/jellyfin-web-bundle/."
 
-	# Launcher wrapper: /usr/bin/jellyfin -> the framework-dependent server.
 	dotnet-pkg-base_dolauncher "${INST_DIR}/jellyfin"
 
-	# State directories.
 	keepdir /var/log/jellyfin
 	fowners jellyfin:jellyfin /var/log/jellyfin
 	keepdir /etc/jellyfin
 	fowners jellyfin:jellyfin /etc/jellyfin
 	newtmpfiles - jellyfin.conf <<<"d /var/cache/jellyfin 0775 jellyfin jellyfin -"
 
-	# Service integration.
 	newinitd "${FILESDIR}/jellyfin.init-r1" "${PN}"
 	newconfd "${FILESDIR}/jellyfin.confd" "${PN}"
 	systemd_dounit "${FILESDIR}/jellyfin.service"
