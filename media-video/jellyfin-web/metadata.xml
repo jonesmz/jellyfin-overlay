@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<upstream>
+		<remote-id type="github">jellyfin/jellyfin-web</remote-id>
+		<bugs-to>https://github.com/jellyfin/jellyfin-web/issues</bugs-to>
+	</upstream>
+	<longdescription lang="en">
+		The Jellyfin web client, built from source. This is the browser UI
+		the Jellyfin server serves. Its npm dependency closure is fetched as
+		individual distfiles and installed offline via the npm eclass, so no
+		prebuilt node_modules bundle is required.
+	</longdescription>
+</pkgmetadata>
