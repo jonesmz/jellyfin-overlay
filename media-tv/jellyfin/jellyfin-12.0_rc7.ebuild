@@ -15,9 +15,16 @@ DOTNET_PKG_COMPAT="10.0"
 # dev-dotnet/gentoo-dotnet-maintainer-tools, run in a clean tagged checkout:
 #   gdmt restore --sdk-ver 10.0 --cache "$(pwd)/.cache" \
 #       --project Jellyfin.Server/Jellyfin.Server.csproj
-# gdmt performs the same RID-aware restore the eclass uses and prints this
-# list. (The --runtime linux-x64 restore pulls the linux-x64 runtime packs
-# that a portable restore would not, so the flags must match the eclass.)
+#
+# IMPORTANT: gdmt's default output is INCOMPLETE for this package. It filters
+# out the .NET runtime packs on the assumption they are SDK-provided, but the
+# eclass restores with --runtime linux-x64 (RID-specific), which genuinely
+# needs them as packages. So after running gdmt, add the two linux-x64 runtime
+# packs by hand (verified missing otherwise -> NU1101 at restore):
+#   microsoft.aspnetcore.app.runtime.linux-x64@<ver>
+#   microsoft.netcore.app.runtime.linux-x64@<ver>
+# (gdmt --no-filter includes them, but also adds runtime packs for every other
+# Linux RID (arm/arm64/musl), which we do not want.)
 NUGETS="
 	asynckeyedlock@8.0.2
 	bblanchon.pdfium.linux@147.0.7690
