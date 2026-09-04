@@ -225,12 +225,7 @@ SRC_URI="
 S="${WORKDIR}/jellyfin-${MY_PV}"
 
 LICENSE="GPL-2"
-# Bundled prebuilt native assets inside NuGet packages carry their own terms.
-LICENSE+=" Apache-2.0 BSD MIT"
 SLOT="0"
-# Release candidate, keyworded ~amd64. The arch keyword is also required by
-# dotnet-pkg.eclass, which calls "use amd64"/"usex elibc_musl" to pick the
-# .NET runtime identifier, so an empty KEYWORDS would fail at pkg_setup.
 KEYWORDS="~amd64"
 
 # Runtime libraries the server links/execs at runtime. The .NET build is
