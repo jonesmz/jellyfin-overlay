@@ -6,11 +6,8 @@
 		<bugs-to>https://github.com/jellyfin/jellyfin/issues</bugs-to>
 	</upstream>
 	<longdescription lang="en">
-		Jellyfin is a Free Software Media System that puts you in control of
-		managing and streaming your media. This package builds the Jellyfin
-		server from source using the .NET SDK, and installs the prebuilt
-		Jellyfin web client extracted from the upstream release artifact
-		(the web client is a separate npm/webpack project that is not built
-		from source here).
+		Metapackage pulling in the Jellyfin media server
+		(www-apps/jellyfin-server) and its web client
+		(media-video/jellyfin-web).
 	</longdescription>
 </pkgmetadata>

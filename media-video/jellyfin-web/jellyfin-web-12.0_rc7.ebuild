@@ -1644,9 +1644,8 @@ inherit npm
 
 MY_PV="${PV/_rc/-rc}"
 
-DESCRIPTION="Web client for Jellyfin (built from source)"
-HOMEPAGE="https://jellyfin.org/
-	https://github.com/jellyfin/jellyfin-web/"
+DESCRIPTION="Web Client for Jellyfin"
+HOMEPAGE="https://github.com/jellyfin/jellyfin-web"
 
 SRC_URI="
 	https://github.com/jellyfin/jellyfin-web/archive/v${MY_PV}.tar.gz
