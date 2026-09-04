@@ -234,8 +234,8 @@ DOTNET_PKG_PROJECTS=( "${S}/Jellyfin.Server/Jellyfin.Server.csproj" )
 INST_DIR="/usr/share/${PN}"
 
 src_unpack() {
-	# Only the source tarball is unpacked here; the web client is pulled out of
-	# the -bin tarball in src_prepare, not unpacked wholesale.
+	# Unpack only the source tarball; the -bin tarball is not unpacked
+	# wholesale, we extract just the web client from it below.
 	nuget_link-system-nugets
 	nuget_link-nuget-archives
 	unpack "${P}.gh.tar.gz"
