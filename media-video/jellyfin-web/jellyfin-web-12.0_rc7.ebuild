@@ -1658,13 +1658,10 @@ LICENSE="GPL-2"
 SLOT="0"
 KEYWORDS="~amd64"
 
-# The webpack production build; see package.json scripts.
+# The webpack production build; see package.json scripts. Output goes to
+# dist/ and the eclass default src_install copies it to NPM_INSTALL_DIR.
 NPM_BUILD_SCRIPT="build:production"
+NPM_INSTALL_DIR="/usr/share/jellyfin-web"
 
 # Output is static web assets; nothing is needed at runtime.
 RDEPEND=""
-
-src_install() {
-	insinto /usr/share/jellyfin-web
-	doins -r dist/.
-}

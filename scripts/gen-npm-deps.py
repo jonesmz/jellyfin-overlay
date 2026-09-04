@@ -30,7 +30,8 @@ def distfile_name(url):
 
 
 def main(lockfile):
-    lock = json.load(open(lockfile))
+    with open(lockfile, encoding="utf-8") as f:
+        lock = json.load(f)
     seen = {}
     for meta in lock.get("packages", {}).values():
         url = meta.get("resolved")
