@@ -9,16 +9,15 @@ EAPI=8
 # bundle out of the official server release tarball and install it as-is.
 DOTNET_PKG_COMPAT="10.0"
 
-# Full NuGet closure needed to restore the Jellyfin solution (minus the test
-# projects, which are stripped via DOTNET_PKG_BAD_PROJECTS). Generated with:
-#   git clone --branch v12.0-rc7 https://github.com/jellyfin/jellyfin
-#   # remove the tests/ projects from Jellyfin.sln (see DOTNET_PKG_BAD_PROJECTS)
-#   rm global.json
-#   NUGET_PACKAGES=<empty-dir> \
-#     dotnet restore Jellyfin.sln --runtime linux-x64
-# then listing every name@version populated in NUGET_PACKAGES. The RID restore
-# (--runtime linux-x64) pulls the linux-x64 runtime packs, which a portable
-# restore would not, so it must match the flags used by dotnet-pkg.eclass.
+# Full NuGet closure needed to restore the server project (Jellyfin.Server),
+# which transitively covers the whole non-test project graph. Regenerate on
+# every version bump with the official gdmt tool from
+# dev-dotnet/gentoo-dotnet-maintainer-tools, run in a clean tagged checkout:
+#   gdmt restore --sdk-ver 10.0 --cache "$(pwd)/.cache" \
+#       --project Jellyfin.Server/Jellyfin.Server.csproj
+# gdmt performs the same RID-aware restore the eclass uses and prints this
+# list. (The --runtime linux-x64 restore pulls the linux-x64 runtime packs
+# that a portable restore would not, so the flags must match the eclass.)
 NUGETS="
 	asynckeyedlock@8.0.2
 	bblanchon.pdfium.linux@147.0.7690
