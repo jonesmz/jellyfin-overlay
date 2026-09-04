@@ -171,6 +171,29 @@ npm_run() {
 	npm run "${@}" || die "npm run ${1} failed"
 }
 
+# @FUNCTION: npm_src_unpack
+# @DESCRIPTION:
+# Unpack only the non-dependency archives (the project source). The npm
+# dependency tarballs listed in NPM_DEPS are consumed as tarballs directly
+# from DISTDIR by npm_ci, so unpacking all ~thousands of them into WORKDIR is
+# pure waste; they are skipped here.
+npm_src_unpack() {
+	# Collect the set of NPM_DEPS distfile names to skip.
+	local -a fields
+	fields=( ${NPM_DEPS} )
+	local i
+	local -A npm_distfiles=()
+	for (( i = 1; i < ${#fields[@]}; i += 2 )) ; do
+		npm_distfiles["${fields[i]}"]=1
+	done
+
+	local archive
+	for archive in ${A} ; do
+		[[ -n ${npm_distfiles[${archive}]} ]] && continue
+		unpack "${archive}"
+	done
+}
+
 # @FUNCTION: npm_src_compile
 # @DESCRIPTION:
 # Default src_compile: offline install then run NPM_BUILD_SCRIPT.
@@ -181,4 +204,4 @@ npm_src_compile() {
 
 fi
 
-EXPORT_FUNCTIONS pkg_setup src_compile
+EXPORT_FUNCTIONS pkg_setup src_unpack src_compile
