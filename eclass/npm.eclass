@@ -95,46 +95,52 @@ npm_pkg_setup() {
 # Rewrite package-lock.json (and package.json for non-registry URL deps) so all
 # dependency "resolved" URLs point at the local distfiles, then run
 # "npm ci --offline". Must be run from the directory containing package.json.
+# @VARIABLE: _NPM_REWRITE_JS
+# @INTERNAL
+# @DESCRIPTION:
+# The Node.js lockfile-rewrite program, stored as a plain string (no
+# here-document, which would make bash create a temp file in CWD when the
+# eclass is sourced — forbidden by the sandbox during the depend phase).
+# Written to ${T} and executed at build time by npm_ci.
+_NPM_REWRITE_JS='
+const fs = require("fs");
+const distdir = process.env.NPM_DISTDIR;
+const map = {};
+for (const line of fs.readFileSync(process.env.NPM_DEPS_FILE, "utf8").split("\n")) {
+	const t = line.trim();
+	if (!t) continue;
+	const sp = t.indexOf(" ");
+	const url = t.slice(0, sp), name = t.slice(sp + 1).trim();
+	map[url] = "file://" + distdir + "/" + name;
+}
+const rewriteSpecs = (obj) => {
+	for (const sect of ["dependencies", "devDependencies", "optionalDependencies"]) {
+		if (!obj[sect]) continue;
+		for (const [k, v] of Object.entries(obj[sect]))
+			if (typeof v === "string" && map[v]) obj[sect][k] = "file:" + map[v].slice(7);
+	}
+};
+const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
+for (const p of Object.values(lock.packages || {}))
+	if (p.resolved && map[p.resolved]) p.resolved = map[p.resolved];
+if (lock.packages && lock.packages[""]) rewriteSpecs(lock.packages[""]);
+fs.writeFileSync("package-lock.json", JSON.stringify(lock));
+const pj = JSON.parse(fs.readFileSync("package.json", "utf8"));
+rewriteSpecs(pj);
+fs.writeFileSync("package.json", JSON.stringify(pj, null, 2));
+'
+
 npm_ci() {
-	local distdir="${DISTDIR}"
-
-	# NPM_DEPS can be thousands of lines; pass it via a file, not the
-	# environment (which has a size limit).
+	# NPM_DEPS can be thousands of lines; pass it (and the rewrite program) via
+	# files in ${T}, never the environment or a here-document.
 	local depsfile="${T}/npm-deps.txt"
+	local jsfile="${T}/npm-rewrite.js"
 	printf '%s\n' "${NPM_DEPS}" > "${depsfile}" || die
+	printf '%s\n' "${_NPM_REWRITE_JS}" > "${jsfile}" || die
 
-	# Rewrite resolved URLs -> file:// local distfile paths.
-	NPM_DISTDIR="${distdir}" NPM_DEPS_FILE="${depsfile}" \
-		"${EPREFIX}"/usr/bin/node - <<-'EOF' || die "npm.eclass: lockfile rewrite failed"
-		const fs = require('fs');
-		const distdir = process.env.NPM_DISTDIR;
-		const map = {};
-		for (const line of fs.readFileSync(process.env.NPM_DEPS_FILE, 'utf8').split('\n')) {
-			const t = line.trim();
-			if (!t) continue;
-			const [url, name] = t.split(/\s+/);
-			map[url] = 'file://' + distdir + '/' + name;
-		}
-		const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
-		for (const p of Object.values(lock.packages || {})) {
-			if (p.resolved && map[p.resolved]) p.resolved = map[p.resolved];
-		}
-		// Non-registry URL deps are keyed off package.json specs; rewrite those
-		// to file: so npm does not try to re-fetch them.
-		const rewriteSpecs = (obj) => {
-			for (const sect of ['dependencies', 'devDependencies', 'optionalDependencies']) {
-				if (!obj[sect]) continue;
-				for (const [k, v] of Object.entries(obj[sect])) {
-					if (typeof v === 'string' && map[v]) obj[sect][k] = 'file:' + map[v].slice('file://'.length);
-				}
-			}
-		};
-		if (lock.packages && lock.packages['']) rewriteSpecs(lock.packages['']);
-		fs.writeFileSync('package-lock.json', JSON.stringify(lock));
-		const pj = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-		rewriteSpecs(pj);
-		fs.writeFileSync('package.json', JSON.stringify(pj, null, 2));
-	EOF
+	# Rewrite resolved URLs (and non-registry URL specs) -> file:// distfiles.
+	NPM_DISTDIR="${DISTDIR}" NPM_DEPS_FILE="${depsfile}" \
+		node "${jsfile}" || die "npm.eclass: lockfile rewrite failed"
 
 	local -x npm_config_cache="${NPM_OFFLINE_CACHE}"
 	local -x npm_config_offline=true
