@@ -246,33 +246,19 @@ BDEPEND="
 	acct-user/jellyfin
 "
 
-# Only the top-level server project is built; the eclass restores/builds the
-# whole dependency project graph from the solution automatically.
+# Explicit allowlist of what we build: just the server entry point. Its
+# transitive project references cover the entire non-test project graph, so
+# restoring/building this one project pulls exactly the server NuGet closure
+# (verified: a project-only restore yields the same 178 packages as a
+# test-stripped full-solution restore).
+#
+# NOTE: we intentionally do NOT let the eclass restore the whole Jellyfin.sln.
+# The default dotnet-pkg_src_configure also runs a solution-wide restore, which
+# would drag in the tests/ projects and their test-only NuGets (xunit, Moq,
+# AutoFixture, ...). Our src_configure override below restores only the
+# projects listed here, so new test projects added upstream can never sneak
+# back into our dependency set.
 DOTNET_PKG_PROJECTS=( "${S}/Jellyfin.Server/Jellyfin.Server.csproj" )
-
-# dotnet-pkg_src_configure restores the *entire* solution, which pulls in the
-# test projects and their test-only NuGet deps (xunit, Moq, AutoFixture, ...).
-# We do not build or run the test suite, so strip the test projects from the
-# solution before restore; this keeps NUGETS to the server closure only.
-DOTNET_PKG_BAD_PROJECTS=(
-	"${S}/tests/Jellyfin.Api.Tests/Jellyfin.Api.Tests.csproj"
-	"${S}/tests/Jellyfin.Common.Tests/Jellyfin.Common.Tests.csproj"
-	"${S}/tests/Jellyfin.Controller.Tests/Jellyfin.Controller.Tests.csproj"
-	"${S}/tests/Jellyfin.Drawing.Skia.Tests/Jellyfin.Drawing.Skia.Tests.csproj"
-	"${S}/tests/Jellyfin.Extensions.Tests/Jellyfin.Extensions.Tests.csproj"
-	"${S}/tests/Jellyfin.LiveTv.Tests/Jellyfin.LiveTv.Tests.csproj"
-	"${S}/tests/Jellyfin.MediaEncoding.Hls.Tests/Jellyfin.MediaEncoding.Hls.Tests.csproj"
-	"${S}/tests/Jellyfin.MediaEncoding.Keyframes.Tests/Jellyfin.MediaEncoding.Keyframes.Tests.csproj"
-	"${S}/tests/Jellyfin.MediaEncoding.Tests/Jellyfin.MediaEncoding.Tests.csproj"
-	"${S}/tests/Jellyfin.Model.Tests/Jellyfin.Model.Tests.csproj"
-	"${S}/tests/Jellyfin.Naming.Tests/Jellyfin.Naming.Tests.csproj"
-	"${S}/tests/Jellyfin.Networking.Tests/Jellyfin.Networking.Tests.csproj"
-	"${S}/tests/Jellyfin.Providers.Tests/Jellyfin.Providers.Tests.csproj"
-	"${S}/tests/Jellyfin.Server.Implementations.Tests/Jellyfin.Server.Implementations.Tests.csproj"
-	"${S}/tests/Jellyfin.Server.Integration.Tests/Jellyfin.Server.Integration.Tests.csproj"
-	"${S}/tests/Jellyfin.Server.Tests/Jellyfin.Server.Tests.csproj"
-	"${S}/tests/Jellyfin.XbmcMetadata.Tests/Jellyfin.XbmcMetadata.Tests.csproj"
-)
 
 INST_DIR="/usr/share/${PN}"
 
@@ -291,6 +277,16 @@ src_unpack() {
 	tar -xJf "${DISTDIR}/jellyfin-web-${PV}.tar.xz" \
 		-C "${WORKDIR}/jellyfin-web-bundle" \
 		--strip-components=2 jellyfin/jellyfin-web || die "web extract failed"
+}
+
+src_configure() {
+	dotnet-pkg-base_info
+
+	# Restore only the projects in DOTNET_PKG_PROJECTS. Deliberately skip the
+	# eclass default's solution-wide restore (dotnet-pkg-base_foreach-solution)
+	# so the tests/ projects are never restored. See DOTNET_PKG_PROJECTS above.
+	dotnet-pkg_foreach-project \
+		dotnet-pkg-base_restore "${DOTNET_PKG_RESTORE_EXTRA_ARGS[@]}"
 }
 
 src_install() {
