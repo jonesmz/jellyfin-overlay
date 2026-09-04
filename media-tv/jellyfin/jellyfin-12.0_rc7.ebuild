@@ -9,11 +9,16 @@ EAPI=8
 # bundle out of the official server release tarball and install it as-is.
 DOTNET_PKG_COMPAT="10.0"
 
-# Transitive NuGet closure for Jellyfin.Server, generated with:
+# Full NuGet closure needed to restore the Jellyfin solution (minus the test
+# projects, which are stripped via DOTNET_PKG_BAD_PROJECTS). Generated with:
 #   git clone --branch v12.0-rc7 https://github.com/jellyfin/jellyfin
-#   dotnet restore Jellyfin.Server/Jellyfin.Server.csproj --use-lock-file
-# then aggregating every resolved package (name@version) from the produced
-# packages.lock.json files.
+#   # remove the tests/ projects from Jellyfin.sln (see DOTNET_PKG_BAD_PROJECTS)
+#   rm global.json
+#   NUGET_PACKAGES=<empty-dir> \
+#     dotnet restore Jellyfin.sln --runtime linux-x64
+# then listing every name@version populated in NUGET_PACKAGES. The RID restore
+# (--runtime linux-x64) pulls the linux-x64 runtime packs, which a portable
+# restore would not, so it must match the flags used by dotnet-pkg.eclass.
 NUGETS="
 	asynckeyedlock@8.0.2
 	bblanchon.pdfium.linux@147.0.7690
@@ -47,8 +52,10 @@ NUGETS="
 	metabrainz.common.json@7.2.0
 	metabrainz.common@4.1.1
 	metabrainz.musicbrainz@8.0.1
+	microsoft.aspnetcore.app.runtime.linux-x64@10.0.7
 	microsoft.aspnetcore.authorization@10.0.11
 	microsoft.aspnetcore.metadata@10.0.11
+	microsoft.build.framework@17.11.31
 	microsoft.build.framework@18.0.2
 	microsoft.codeanalysis.analyzers@3.11.0
 	microsoft.codeanalysis.analyzers@5.9.0
@@ -81,6 +88,8 @@ NUGETS="
 	microsoft.extensions.dependencyinjection.abstractions@10.0.11
 	microsoft.extensions.dependencyinjection.abstractions@2.0.0
 	microsoft.extensions.dependencyinjection@10.0.11
+	microsoft.extensions.dependencyinjection@9.0.0
+	microsoft.extensions.dependencymodel@10.0.0
 	microsoft.extensions.dependencymodel@10.0.11
 	microsoft.extensions.diagnostics.abstractions@10.0.11
 	microsoft.extensions.diagnostics.healthchecks.entityframeworkcore@10.0.11
@@ -89,12 +98,17 @@ NUGETS="
 	microsoft.extensions.hosting.abstractions@10.0.11
 	microsoft.extensions.http@10.0.11
 	microsoft.extensions.logging.abstractions@10.0.11
+	microsoft.extensions.logging.abstractions@9.0.0
 	microsoft.extensions.logging@10.0.11
+	microsoft.extensions.logging@9.0.0
 	microsoft.extensions.options.configurationextensions@10.0.11
 	microsoft.extensions.options@10.0.11
 	microsoft.extensions.options@2.0.0
+	microsoft.extensions.options@9.0.0
 	microsoft.extensions.primitives@10.0.11
 	microsoft.extensions.primitives@2.0.0
+	microsoft.extensions.primitives@9.0.0
+	microsoft.netcore.app.runtime.linux-x64@10.0.7
 	microsoft.netcore.platforms@1.1.0
 	microsoft.openapi@2.7.5
 	microsoft.visualstudio.solutionpersistence@1.0.52
@@ -104,6 +118,7 @@ NUGETS="
 	morestachio@5.0.1.670
 	nebml@1.1.0.5
 	netstandard.library@2.0.3
+	newtonsoft.json@13.0.3
 	newtonsoft.json@13.0.4
 	pdftoimage@5.2.1
 	playlistsnet@1.4.1
@@ -125,6 +140,9 @@ NUGETS="
 	serilog.sinks.debug@3.0.0
 	serilog.sinks.file@7.0.0
 	serilog.sinks.graylog@3.1.1
+	serilog@4.0.0
+	serilog@4.1.0
+	serilog@4.2.0
 	serilog@4.3.0
 	seriloganalyzer@0.15.0
 	sharpcompress@0.50.4
@@ -136,6 +154,8 @@ NUGETS="
 	skiasharp.nativeassets.macos@3.119.4
 	skiasharp.nativeassets.win32@3.119.2
 	skiasharp.nativeassets.win32@3.119.4
+	skiasharp@2.88.9
+	skiasharp@3.116.1
 	skiasharp@3.119.2
 	skiasharp@3.119.4
 	smartanalyzers.multithreadinganalyzer@1.1.31
@@ -163,15 +183,18 @@ NUGETS="
 	system.composition.typedparts@9.0.0
 	system.composition@9.0.0
 	system.drawing.common@9.0.2
+	system.memory@4.5.5
 	system.memory@4.6.3
 	system.numerics.vectors@4.6.1
 	system.reflection.metadata@10.0.1
+	system.runtime.compilerservices.unsafe@6.0.0
 	system.runtime.compilerservices.unsafe@6.1.2
 	system.text.encoding.codepages@8.0.0
 	system.threading.tasks.extensions@4.6.3
 	taglibsharp@2.3.0
 	tmdblib@3.0.0
 	ude.netstandard@1.2.0
+	utf.unknown@2.5.1
 	utf.unknown@2.7.0
 	z440.atl.core@7.16.0
 	zlib.net-mutliplatform@1.0.8
@@ -199,9 +222,9 @@ LICENSE="GPL-2"
 # Bundled prebuilt native assets inside NuGet packages carry their own terms.
 LICENSE+=" Apache-2.0 BSD MIT"
 SLOT="0"
-# Release candidate. The arch keyword is required by dotnet-pkg.eclass
-# (it uses "use amd64"/etc. to pick the .NET runtime identifier). Keep the
-# RC gated behind a package.mask entry rather than empty KEYWORDS.
+# Release candidate, keyworded ~amd64. The arch keyword is also required by
+# dotnet-pkg.eclass, which calls "use amd64"/"usex elibc_musl" to pick the
+# .NET runtime identifier, so an empty KEYWORDS would fail at pkg_setup.
 KEYWORDS="~amd64"
 
 RDEPEND="
@@ -218,6 +241,30 @@ BDEPEND="acct-user/jellyfin"
 # Only the top-level server project is built; the eclass restores/builds the
 # whole dependency project graph from the solution automatically.
 DOTNET_PKG_PROJECTS=( "${S}/Jellyfin.Server/Jellyfin.Server.csproj" )
+
+# dotnet-pkg_src_configure restores the *entire* solution, which pulls in the
+# test projects and their test-only NuGet deps (xunit, Moq, AutoFixture, ...).
+# We do not build or run the test suite, so strip the test projects from the
+# solution before restore; this keeps NUGETS to the server closure only.
+DOTNET_PKG_BAD_PROJECTS=(
+	"${S}/tests/Jellyfin.Api.Tests/Jellyfin.Api.Tests.csproj"
+	"${S}/tests/Jellyfin.Common.Tests/Jellyfin.Common.Tests.csproj"
+	"${S}/tests/Jellyfin.Controller.Tests/Jellyfin.Controller.Tests.csproj"
+	"${S}/tests/Jellyfin.Drawing.Skia.Tests/Jellyfin.Drawing.Skia.Tests.csproj"
+	"${S}/tests/Jellyfin.Extensions.Tests/Jellyfin.Extensions.Tests.csproj"
+	"${S}/tests/Jellyfin.LiveTv.Tests/Jellyfin.LiveTv.Tests.csproj"
+	"${S}/tests/Jellyfin.MediaEncoding.Hls.Tests/Jellyfin.MediaEncoding.Hls.Tests.csproj"
+	"${S}/tests/Jellyfin.MediaEncoding.Keyframes.Tests/Jellyfin.MediaEncoding.Keyframes.Tests.csproj"
+	"${S}/tests/Jellyfin.MediaEncoding.Tests/Jellyfin.MediaEncoding.Tests.csproj"
+	"${S}/tests/Jellyfin.Model.Tests/Jellyfin.Model.Tests.csproj"
+	"${S}/tests/Jellyfin.Naming.Tests/Jellyfin.Naming.Tests.csproj"
+	"${S}/tests/Jellyfin.Networking.Tests/Jellyfin.Networking.Tests.csproj"
+	"${S}/tests/Jellyfin.Providers.Tests/Jellyfin.Providers.Tests.csproj"
+	"${S}/tests/Jellyfin.Server.Implementations.Tests/Jellyfin.Server.Implementations.Tests.csproj"
+	"${S}/tests/Jellyfin.Server.Integration.Tests/Jellyfin.Server.Integration.Tests.csproj"
+	"${S}/tests/Jellyfin.Server.Tests/Jellyfin.Server.Tests.csproj"
+	"${S}/tests/Jellyfin.XbmcMetadata.Tests/Jellyfin.XbmcMetadata.Tests.csproj"
+)
 
 INST_DIR="/usr/share/${PN}"
 
