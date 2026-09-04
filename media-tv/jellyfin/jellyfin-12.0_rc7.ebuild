@@ -227,6 +227,9 @@ SLOT="0"
 # .NET runtime identifier, so an empty KEYWORDS would fail at pkg_setup.
 KEYWORDS="~amd64"
 
+# Runtime libraries the server links/execs at runtime. The .NET build is
+# framework-dependent and pulls its managed deps from the vendored nugets, so
+# none of these are needed at compile time (no DEPEND entry for them).
 RDEPEND="
 	acct-group/jellyfin
 	acct-user/jellyfin
@@ -235,8 +238,13 @@ RDEPEND="
 	media-video/ffmpeg[vpx,x264]
 	virtual/zlib:=
 "
-DEPEND="${RDEPEND}"
-BDEPEND="acct-user/jellyfin"
+# The .NET SDK build dependency (virtual/dotnet-sdk:${DOTNET_PKG_COMPAT}) is
+# added to BDEPEND automatically by dotnet-pkg.eclass. We only need the
+# jellyfin user/group at install time for the fowners calls in src_install.
+BDEPEND="
+	acct-group/jellyfin
+	acct-user/jellyfin
+"
 
 # Only the top-level server project is built; the eclass restores/builds the
 # whole dependency project graph from the solution automatically.
