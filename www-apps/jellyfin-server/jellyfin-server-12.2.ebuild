@@ -17,7 +17,7 @@ NUGETS="
 	bblanchon.pdfium.macos@147.0.7690
 	bblanchon.pdfium.win32@147.0.7690
 	bdinfo@0.8.0
-	bitfaster.caching@2.6.0
+	bitfaster.caching@2.6.1
 	blurhashsharp.skiasharp@1.4.0-pre.1
 	blurhashsharp@1.4.0-pre.1
 	commandlineparser@2.9.1
@@ -44,7 +44,7 @@ NUGETS="
 	metabrainz.common.json@7.2.0
 	metabrainz.common@4.1.1
 	metabrainz.musicbrainz@8.0.1
-	microsoft.aspnetcore.app.runtime.linux-x64@10.0.7
+	microsoft.aspnetcore.app.runtime.linux-x64@10.0.11
 	microsoft.aspnetcore.authorization@10.0.11
 	microsoft.aspnetcore.metadata@10.0.11
 	microsoft.build.framework@17.11.31
@@ -100,7 +100,7 @@ NUGETS="
 	microsoft.extensions.primitives@10.0.11
 	microsoft.extensions.primitives@2.0.0
 	microsoft.extensions.primitives@9.0.0
-	microsoft.netcore.app.runtime.linux-x64@10.0.7
+	microsoft.netcore.app.runtime.linux-x64@10.0.11
 	microsoft.netcore.platforms@1.1.0
 	microsoft.openapi@2.7.5
 	microsoft.visualstudio.solutionpersistence@1.0.52
@@ -188,7 +188,7 @@ NUGETS="
 	ude.netstandard@1.2.0
 	utf.unknown@2.5.1
 	utf.unknown@2.7.0
-	z440.atl.core@7.16.0
+	z440.atl.core@7.18.0
 	zlib.net-mutliplatform@1.0.8
 "
 
@@ -272,7 +272,6 @@ src_install() {
 pkg_postinst() {
 	tmpfiles_process jellyfin.conf
 
-	elog "This is a release-candidate build of Jellyfin ${PV}."
 	elog "The web UI is provided by media-video/jellyfin-web at"
 	elog "/usr/share/jellyfin-web (the service files point --webdir there)."
 	elog

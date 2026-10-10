@@ -245,7 +245,7 @@ NPM_DEPS="
 	https://registry.npmjs.org/@isaacs/cliui/-/cliui-8.0.2.tgz isaacs+cliui+cliui-8.0.2.tgz
 	https://registry.npmjs.org/@istanbuljs/schema/-/schema-0.1.3.tgz istanbuljs+schema+schema-0.1.3.tgz
 	https://registry.npmjs.org/@jellyfin/libass-wasm/-/libass-wasm-4.2.4.tgz jellyfin+libass-wasm+libass-wasm-4.2.4.tgz
-	https://registry.npmjs.org/@jellyfin/sdk/-/sdk-0.0.0-unstable.202607220710.tgz jellyfin+sdk+sdk-0.0.0-unstable.202607220710.tgz
+	https://registry.npmjs.org/@jellyfin/sdk/-/sdk-1.0.0.tgz jellyfin+sdk+sdk-1.0.0.tgz
 	https://registry.npmjs.org/@jellyfin/ux-web/-/ux-web-1.0.0.tgz jellyfin+ux-web+ux-web-1.0.0.tgz
 	https://registry.npmjs.org/@jridgewell/gen-mapping/-/gen-mapping-0.3.13.tgz jridgewell+gen-mapping+gen-mapping-0.3.13.tgz
 	https://registry.npmjs.org/@jridgewell/remapping/-/remapping-2.3.5.tgz jridgewell+remapping+remapping-2.3.5.tgz
@@ -1663,5 +1663,4 @@ KEYWORDS="~amd64"
 NPM_BUILD_SCRIPT="build:production"
 NPM_INSTALL_DIR="/usr/share/jellyfin-web"
 
-# Output is static web assets; nothing is needed at runtime.
-RDEPEND=""
+# Output is static web assets; nothing is needed at runtime (no RDEPEND).
